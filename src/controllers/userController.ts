@@ -1,16 +1,16 @@
 import { RequestHandler } from "express";
 import { registerSchema, registerUser,} from "../services/userService";
 
-export const register: RequestHandler = async (req, res, next): Promise<void> => {
+export const register: RequestHandler = async (req, res, next) => {
     try {
-        const parsedData = registerSchema.safeParse(req.body);
-        if (!parsedData.success) {
-            res.status(400).json({ error: parsedData.error.errors });
-            return;
-        }
-        const { name, email, password } = parsedData.data;
-        await registerUser(name, email, password);
-        res.status(201).json({ message: "User registered successfully" });
+        const { name, email, password } = req.body;
+
+        const data = await registerUser(name, email, password);
+
+        res.status(201).json({
+            message: "User registered successfully",
+            data: data 
+        });
     } catch (error) {
         next(error);
     }
