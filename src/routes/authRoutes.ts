@@ -1,19 +1,10 @@
 import { Router } from "express";
-import { login } from "../controllers/userController";
-import { registerUser } from "../services/userService";
+import { login, register } from "../controllers/userController";
 import { getUsers, getUserById } from "../services/userService";
 
 const router = Router();
 
-router.post("/register", async (req, res, next) => {
-    try {
-        const { name, email, password } = req.body;
-        const user = await registerUser(name, email, password);
-        res.status(201).json({ message: "User registered successfully", user });
-    } catch (error) {
-        next(error); 
-    }
-});
+router.post("/register", register);
 
 router.post("/login", login);
 
