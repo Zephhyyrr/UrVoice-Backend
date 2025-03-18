@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { RequestHandler } from "express";
 import bcrypt from "bcryptjs";
 import jwt, { Secret, SignOptions } from "jsonwebtoken";
+import { authenticateToken } from "../middleware/auth";
 import dotenv from "dotenv";
 import { z } from "zod";
 
@@ -63,41 +64,69 @@ export const registerUser = async (name: string, email: string, password: string
 };
 
 
+
 export const loginUser = async (email: string, password: string) => {
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !(await bcrypt.compare(password, user.password))) {
+
+    if (!user) {
+        throw new Error("User not found");
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
         throw new Error("Invalid email or password");
     }
-    await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
+
+    const existingToken = await prisma.refreshToken.findFirst({
+        where: { userId: user.id },
+        orderBy: { createdAt: "desc" },
+    });
+
+    let refreshToken = existingToken?.token;
+
+    if (!existingToken || (new Date().getTime() - new Date(existingToken.createdAt).getTime()) > 3600000) {
+        await prisma.refreshToken.deleteMany({ where: { userId: user.id } }); 
+        refreshToken = generateRefreshToken(user.id); 
+
+        await prisma.refreshToken.create({
+            data: { token: refreshToken, userId: user.id },
+        });
+    }
+
     const accessToken = generateToken(user.id);
-    const refreshToken = generateRefreshToken(user.id);
-    await prisma.refreshToken.create({ data: { token: refreshToken, userId: user.id } });
+
     return { accessToken, refreshToken };
 };
 
-export const getUsers: RequestHandler = async (req, res, next) => {
-    try {
-        const users = await prisma.user.findMany(); // Ambil semua user
-        res.status(200).json(users);
-    } catch (error) {
-        next(error);
-    }
-};
-
-export const getUserById: RequestHandler = async (req, res, next) => {
-    try {
-        const userId = parseInt(req.params.id, 10); 
-        if (isNaN(userId)) {
-            res.status(400).json({ error: "Invalid user ID" });
+export const getUsers: RequestHandler[] = [
+    authenticateToken,
+    async (req, res, next) => {
+        try {
+            const users = await prisma.user.findMany();
+            res.status(200).json(users);
+        } catch (error) {
+            next(error);
         }
-
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-        if (!user) {
-            res.status(404).json({ error: "User not found" });
-        }
-
-        res.status(200).json(user);
-    } catch (error) {
-        next(error);
     }
-};
+];
+
+export const getUserById: RequestHandler[] = [
+    authenticateToken,
+    async (req, res, next) => {
+        try {
+            const userId = Number(req.query.id);
+            if (isNaN(userId)) {
+                return res.status(400).json({ error: "Invalid user ID" });
+            }
+
+            const user = await prisma.user.findUnique({ where: { id: userId } });
+            if (!user) {
+                return res.status(404).json({ error: "User not found" });
+            }
+
+            res.status(200).json(user);
+        } catch (error) {
+            next(error);
+        }
+    }
+];

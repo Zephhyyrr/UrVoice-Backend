@@ -5,9 +5,9 @@ import authRoutes from "./routes/authRoutes";
 dotenv.config();
 
 const app = express();
-app.use(express.json()); // Middleware untuk parsing JSON
+app.use(express.json()); 
 
-app.use("/api/users", authRoutes); // Menggunakan route authRoutes
+app.use("/api/users", authRoutes); 
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

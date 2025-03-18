@@ -14,10 +14,11 @@ interface AuthRequest extends Request {
     user?: { userId: number };
 }
 
-export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction): void => {
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith("Bearer ")) {
-        return res.status(401).json({ error: "Access denied, token missing or malformed!" });
+        res.status(401).json({ error: "Access denied, token missing or malformed!" });
+        return;
     }
 
     const token = authHeader.split(" ")[1];
@@ -27,6 +28,6 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
         req.user = decoded;
         next();
     } catch (error) {
-        return res.status(403).json({ error: "Invalid or expired token!" });
+        res.status(403).json({ error: "Invalid or expired token!" });
     }
 };
