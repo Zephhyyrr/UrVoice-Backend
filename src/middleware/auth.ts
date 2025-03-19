@@ -30,4 +30,4 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
     } catch (error) {
         res.status(403).json({ error: "Invalid or expired token!" });
     }
-};
+};  

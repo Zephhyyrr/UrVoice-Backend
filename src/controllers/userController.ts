@@ -1,6 +1,5 @@
 import { RequestHandler } from "express";
 import { registerUser, loginUser } from "../services/userService";
-import jwt from "jsonwebtoken";
 
 export const register: RequestHandler = async (req, res, next) => {
     try {
@@ -25,11 +24,11 @@ export const login: RequestHandler = async (req, res, next): Promise<void> => {
             return
         }
 
-        const { data: data} = await loginUser(email, password);
+        const { accessToken, refreshToken } = await loginUser(email, password);
 
         res.status(200).json({
             message: "Login successful",
-            data,
+            data: { accessToken, refreshToken },
         });
     } catch (error) {
         next(error);

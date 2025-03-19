@@ -1,10 +1,10 @@
 import { PrismaClient } from "@prisma/client";
-import { RequestHandler } from "express";
 import bcrypt from "bcryptjs";
 import jwt, { Secret, SignOptions } from "jsonwebtoken";
-import { authenticateToken } from "../middleware/auth";
 import dotenv from "dotenv";
 import { z } from "zod";
+import { RequestHandler } from "express";
+import { authenticateToken } from "../middleware/auth"; // Adjust the path as necessary
 
 dotenv.config();
 
@@ -28,7 +28,6 @@ const generateRefreshToken = (userId: number): string => {
     const options: SignOptions = { expiresIn: parsedJwtRefreshExpiration };
     return jwt.sign({ userId }, JWT_REFRESH_SECRET, options);
 };
-
 
 export const registerSchema = z.object({
     name: z.string().min(1, "Name is required"),
@@ -63,53 +62,38 @@ export const registerUser = async (name: string, email: string, password: string
     };
 };
 
-
-
 export const loginUser = async (email: string, password: string) => {
-    try {
-        const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ where: { email } });
 
-        if (!user) {
-            throw new Error("User not found");
-        }
-
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        if (!isPasswordValid) {
-            throw new Error("Invalid email or password");
-        }
-
-        const existingToken = await prisma.refreshToken.findFirst({
-            where: { userId: user.id },
-            orderBy: { createdAt: "desc" },
-        });
-
-        let refreshToken = existingToken?.token;
-
-        if (!existingToken || (Date.now() - new Date(existingToken.createdAt).getTime()) > 3600000) {
-            await prisma.refreshToken.deleteMany({ where: { userId: user.id } }); 
-            refreshToken = generateRefreshToken(user.id);
-
-            await prisma.refreshToken.create({
-                data: { token: refreshToken, userId: user.id },
-            });
-        }
-
-        const accessToken = generateToken(user.id);
-
-        return {
-            data: {
-                id: user.id,
-                email: user.email,
-                name: user.name,
-                accessToken,
-                refreshToken,
-            }
-        };
-    } catch (error) {
-        throw error;
+    if (!user) {
+        throw new Error("User not found");
     }
-};
 
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+        throw new Error("Invalid email or password");
+    }
+
+    const existingToken = await prisma.refreshToken.findFirst({
+        where: { userId: user.id },
+        orderBy: { createdAt: "desc" },
+    });
+
+    let refreshToken = existingToken?.token;
+
+    if (!existingToken || (new Date().getTime() - new Date(existingToken.createdAt).getTime()) > 3600000) {
+        await prisma.refreshToken.deleteMany({ where: { userId: user.id } }); 
+        refreshToken = generateRefreshToken(user.id); 
+
+        await prisma.refreshToken.create({
+            data: { token: refreshToken, userId: user.id },
+        });
+    }
+
+    const accessToken = generateToken(user.id);
+
+    return { accessToken, refreshToken };
+};
 
 export const getUsers: RequestHandler[] = [
     authenticateToken,
