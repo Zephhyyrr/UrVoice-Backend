@@ -49,9 +49,10 @@ export const registerUser = async (name: string, email: string, password: string
     const accessToken = generateToken(newUser.id);
     const refreshToken = generateRefreshToken(newUser.id);
 
-    await prisma.refreshToken.create({ data: { token: refreshToken, userId: newUser.id } });
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+    await prisma.refreshToken.create({ data: { token: hashedRefreshToken, userId: newUser.id } });
 
-    return { 
+    return {
         id: newUser.id,
         name: newUser.name,
         email: newUser.email,
@@ -82,17 +83,18 @@ export const loginUser = async (email: string, password: string) => {
     let refreshToken = existingToken?.token;
 
     if (!existingToken || (new Date().getTime() - new Date(existingToken.createdAt).getTime()) > 3600000) {
-        await prisma.refreshToken.deleteMany({ where: { userId: user.id } }); 
-        refreshToken = generateRefreshToken(user.id); 
+        await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
+        refreshToken = generateRefreshToken(user.id);  // Token yang asli (belum di-hashed)
 
+        const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
         await prisma.refreshToken.create({
-            data: { token: refreshToken, userId: user.id },
+            data: { token: hashedRefreshToken, userId: user.id },
         });
     }
 
     const accessToken = generateToken(user.id);
 
-    return { accessToken, refreshToken };
+    return { accessToken, refreshToken };  // Mengembalikan token yang asli
 };
 
 export const getUsers: RequestHandler[] = [
