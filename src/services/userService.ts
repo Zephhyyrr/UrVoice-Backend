@@ -3,8 +3,17 @@ import bcrypt from "bcryptjs";
 import jwt, { Secret, SignOptions } from "jsonwebtoken";
 import dotenv from "dotenv";
 import { z } from "zod";
-import { RequestHandler } from "express";
-import { authenticateToken } from "../middleware/auth"; // Adjust the path as necessary
+import { upload } from "../middleware/upload";
+import { RequestHandler, Request } from "express";
+
+declare global {
+    namespace Express {
+        interface Request {
+            user?: { userId: number };
+        }
+    }
+}
+import { authenticateToken } from "../middleware/auth";
 
 dotenv.config();
 
@@ -84,7 +93,7 @@ export const loginUser = async (email: string, password: string) => {
 
     if (!existingToken || (new Date().getTime() - new Date(existingToken.createdAt).getTime()) > 3600000) {
         await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
-        refreshToken = generateRefreshToken(user.id);  // Token yang asli (belum di-hashed)
+        refreshToken = generateRefreshToken(user.id); 
 
         const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
         await prisma.refreshToken.create({
@@ -94,10 +103,10 @@ export const loginUser = async (email: string, password: string) => {
 
     const accessToken = generateToken(user.id);
 
-    return { accessToken, refreshToken };  // Mengembalikan token yang asli
+    return { accessToken, refreshToken };
 };
 
-export const getUsers: RequestHandler[] = [
+export const getAllUsers: RequestHandler[] = [
     authenticateToken,
     async (req, res, next) => {
         try {
@@ -109,7 +118,7 @@ export const getUsers: RequestHandler[] = [
     }
 ];
 
-export const getUserById: RequestHandler[] = [
+export const fetchUserById: RequestHandler[] = [
     authenticateToken,
     async (req, res, next) => {
         try {
@@ -129,3 +138,32 @@ export const getUserById: RequestHandler[] = [
         }
     }
 ];
+
+export const updateProfilePhoto: RequestHandler[] = [
+    authenticateToken,
+    upload.single("profileImage"),
+    async (req, res, next) => {
+        try {
+            const userId = (req.user as { userId: number }).userId;
+            const imagePath = req.file?.path;
+
+            if (!imagePath) {
+                return res.status(400).json({ error: "Image file is required" });
+            }
+
+            const updatedUser = await prisma.user.update({
+                where: { id: userId },
+                data: { profileImage: imagePath },
+            });
+
+            res.status(200).json({
+                status: true,
+                message: "Profile image updated successfully",
+                profileImage: updatedUser.profileImage,
+            });
+        } catch (error) {
+            next(error);
+        }
+    },
+];
+

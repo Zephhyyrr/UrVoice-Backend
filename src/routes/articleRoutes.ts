@@ -4,9 +4,13 @@ import { createArticle, updateArticle, getArticles, getArticleById, deleteArticl
 const router = Router();
 
 router.post("/create", createArticle); 
+
 router.put("/update/:id", updateArticle); 
+
 router.get("/getAll", getArticles); 
+
 router.get("/getArticle/:id", getArticleById); 
+
 router.delete("/delete/:id", deleteArticleById);
 
 export default router;

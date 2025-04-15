@@ -1,63 +1,56 @@
 import { RequestHandler } from "express";
-import { registerUser, loginUser } from "../services/userService";
-import { ResponseError } from "../error/responseError";
-import bcrypt from "bcrypt";
+import * as userService from "../services/userService";
 
 export const register: RequestHandler = async (req, res, next) => {
     try {
         const { name, email, password } = req.body;
-
-        const data = await registerUser(name, email, password);
+        const user = await userService.registerUser(name, email, password);
 
         res.status(201).json({
+            success: true,
             message: "User registered successfully",
-            data: data
+            data: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                createdAt: user.createdAt,
+            },
         });
-    } catch (error) {
-        if (error instanceof ResponseError) {
-            next(error);
-        } else ((error as Error).message === "Email Already Exist"); {
-            next(new ResponseError(500, "Email Already Exist"));
-        } 
+    } catch (e) {
+        next(e);
     }
 };
 
-export const login: RequestHandler = async (req, res, next): Promise<void> => {
+export const login: RequestHandler = async (req, res, next) => {
     try {
         const { email, password } = req.body;
-
-        if (!email || !password) {
-            return 
-        }
-
-        const { accessToken, refreshToken } = await loginUser(email, password);
-
-        if (!refreshToken) {
-            throw new ResponseError(400, "Refresh token is missing");
-        }
+        const { accessToken, refreshToken } = await userService.loginUser(email, password);
 
         res.status(200).json({
+            success: true,
             message: "Login successful",
-            data: { accessToken, refreshToken },  // Mengembalikan refresh token yang asli
+            data: {
+                accessToken,
+                refreshToken,
+            },
         });
-    } catch (error) {
-        next(error);
+    } catch (e) {
+        next(e);
     }
 };
 
-
-export const getUsers: RequestHandler = async (req, res, next): Promise<void> => {
-    try {
-        res.status(200).json({ message: "User data retrieved successfully" });
-    } catch (error) {
-        next(error);
-    }
-};
-
-export const getUserById: RequestHandler = async (req, res, next): Promise<void> => {
-    try {
-        res.status(200).json({ message: "User data retrieved successfully" });
-    } catch (error) {
-        next(error);
-    }
-}
+// export const logout: RequestHandler = async (req, res, next) => {
+//     try {
+//         const user = await userService.logout(req.user!);
+//         res.status(200).json({
+//             success: true,
+//             message: "Logout successful",
+//             data: {
+//                 email: user.email,
+//                 timestamp: new Date().toISOString(),
+//             },
+//         });
+//     } catch (e) {
+//         next(e);
+//     }
+// };
