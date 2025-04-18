@@ -39,18 +39,47 @@ export const login: RequestHandler = async (req, res, next) => {
     }
 };
 
-// export const logout: RequestHandler = async (req, res, next) => {
-//     try {
-//         const user = await userService.logout(req.user!);
-//         res.status(200).json({
-//             success: true,
-//             message: "Logout successful",
-//             data: {
-//                 email: user.email,
-//                 timestamp: new Date().toISOString(),
-//             },
-//         });
-//     } catch (e) {
-//         next(e);
-//     }
-// };
+export const updateUser: RequestHandler = async (req, res, next) => {
+    try {
+        const userId = (req.user as { userId: number }).userId;
+        const { name, email } = req.body;
+
+        const updatedUser = await userService.updateUser(userId, name, email);
+
+        res.status(200).json({
+            success: true,
+            message: "User updated successfully",
+            data: updatedUser,
+        });
+    } catch (e) {
+        next(e);
+    }
+};
+
+export const deleteUser: RequestHandler = async (req, res, next) => {
+    try {
+        const userId = (req.user as { userId: number }).userId;
+        await userService.deleteUser(userId);
+
+        res.status(200).json({
+            success: true,
+            message: "User deleted successfully",
+        });
+    } catch (e) {
+        next(e);
+    }
+};
+
+export const logout: RequestHandler = async (req, res, next) => {
+    try {
+        const userId = (req.user as { userId: number }).userId;
+        await userService.logout(userId);
+
+        res.status(200).json({
+            success: true,
+            message: "Logout successful",
+        });
+    } catch (e) {
+        next(e);
+    }
+};

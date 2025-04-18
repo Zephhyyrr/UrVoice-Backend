@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from "express";
 import dotenv from "dotenv";
 import authRoutes from "./routes/authRoutes";
 import articleRoutes from "./routes/articleRoutes";
+import speechRoutes from "./routes/speechRoutes";
 
 dotenv.config();
 
@@ -10,6 +11,7 @@ app.use(express.json());
 
 app.use("/api/users", authRoutes); 
 app.use("/api/articles", articleRoutes);
+app.use("/api/models", speechRoutes);
 
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     res.status(err.status ? Number(err.status) : 500).json({

@@ -5,6 +5,11 @@ import dotenv from "dotenv";
 import { z } from "zod";
 import { upload } from "../middleware/upload";
 import { RequestHandler, Request } from "express";
+import { ResponseError } from "../error/responseError"
+import { authenticateToken } from "../middleware/auth";
+import path from "path";
+import fs from "fs";
+import crypto from "crypto";
 
 declare global {
     namespace Express {
@@ -13,8 +18,6 @@ declare global {
         }
     }
 }
-import { authenticateToken } from "../middleware/auth";
-
 dotenv.config();
 
 const prisma = new PrismaClient();
@@ -23,7 +26,7 @@ const JWT_SECRET: Secret = process.env.JWT_SECRET as string;
 const JWT_REFRESH_SECRET: Secret = process.env.JWT_REFRESH_SECRET as string;
 
 const JWT_EXPIRATION: string = process.env.JWT_EXPIRATION || "1h";
-const JWT_REFRESH_EXPIRATION: string = process.env.JWT_REFRESH_EXPIRATION || "7d";
+const JWT_REFRESH_EXPIRATION: string = process.env.JWT_REFRESH_EXPIRATION || "1h";
 
 const parsedJwtExpiration: SignOptions['expiresIn'] = /^\d+$/.test(JWT_EXPIRATION) ? Number(JWT_EXPIRATION) : JWT_EXPIRATION as SignOptions['expiresIn'];
 const parsedJwtRefreshExpiration: SignOptions['expiresIn'] = /^\d+$/.test(JWT_REFRESH_EXPIRATION) ? Number(JWT_REFRESH_EXPIRATION) : JWT_REFRESH_EXPIRATION as SignOptions['expiresIn'];
@@ -59,7 +62,7 @@ export const registerUser = async (name: string, email: string, password: string
     const refreshToken = generateRefreshToken(newUser.id);
 
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
-    await prisma.refreshToken.create({ data: { token: hashedRefreshToken, userId: newUser.id } });
+    await prisma.refreshToken.create({ data: { token: refreshToken, userId: newUser.id } });
 
     return {
         id: newUser.id,
@@ -95,9 +98,9 @@ export const loginUser = async (email: string, password: string) => {
         await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
         refreshToken = generateRefreshToken(user.id); 
 
-        const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+        // const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
         await prisma.refreshToken.create({
-            data: { token: hashedRefreshToken, userId: user.id },
+            data: { token: refreshToken, userId: user.id },
         });
     }
 
@@ -124,12 +127,14 @@ export const fetchUserById: RequestHandler[] = [
         try {
             const userId = Number(req.query.id);
             if (isNaN(userId)) {
-                return res.status(400).json({ error: "Invalid user ID" });
+                res.status(400).json({ error: "Invalid user ID" });
+                return;
             }
 
             const user = await prisma.user.findUnique({ where: { id: userId } });
             if (!user) {
-                return res.status(404).json({ error: "User not found" });
+                res.status(404).json({ error: "User not found" });
+                return;
             }
 
             res.status(200).json(user);
@@ -139,21 +144,35 @@ export const fetchUserById: RequestHandler[] = [
     }
 ];
 
+export const updateUser = async (userId: number, name: string, email: string) => {
+    const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: { name, email, updatedAt: new Date() },
+    });
+
+    return updatedUser;
+};
+
 export const updateProfilePhoto: RequestHandler[] = [
     authenticateToken,
     upload.single("profileImage"),
     async (req, res, next) => {
         try {
             const userId = (req.user as { userId: number }).userId;
-            const imagePath = req.file?.path;
+            const file = req.file;
 
-            if (!imagePath) {
+            if (!file) {
                 return res.status(400).json({ error: "Image file is required" });
             }
 
+            const randomFileName = crypto.randomBytes(16).toString("hex") + path.extname(file.originalname);
+            const uploadPath = path.join(__dirname, "../../public/uploads", randomFileName);
+
+            fs.renameSync(file.path, uploadPath);
+
             const updatedUser = await prisma.user.update({
                 where: { id: userId },
-                data: { profileImage: imagePath },
+                data: { profileImage: `/uploads/${randomFileName}` },
             });
 
             res.status(200).json({
@@ -167,3 +186,21 @@ export const updateProfilePhoto: RequestHandler[] = [
     },
 ];
 
+export const deleteUser = async (userId: number) => {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+        throw new ResponseError(404, "User not found");
+    }
+
+    await prisma.refreshToken.deleteMany({ where: { userId } });
+    await prisma.history.deleteMany({ where: { userId } });
+    await prisma.user.delete({ where: { id: userId } });
+};
+
+export const logout = async (userId: number) => {
+    const logoutUser = await prisma.user.findUnique({ where: { id: userId } });
+    if (!logoutUser) {
+        throw new ResponseError(404, "User not Found")
+    }
+    await prisma.refreshToken.deleteMany({ where: { userId } });
+};

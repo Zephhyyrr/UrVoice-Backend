@@ -1,6 +1,7 @@
 import { Router } from "express";
-import { login, register } from "../controllers/userController";
-import { getAllUsers, fetchUserById, updateProfilePhoto } from "../services/userService";
+import { login, register, updateUser, logout, deleteUser } from "../controllers/userController";
+import { getAllUsers, fetchUserById, updateProfilePhoto} from "../services/userService";
+import { authenticateToken } from "../middleware/auth";
 
 const router = Router();
 
@@ -13,5 +14,11 @@ router.get("/getUsers", getAllUsers);
 router.get("/getUser/", fetchUserById);   
 
 router.post("/uploadPhotos", updateProfilePhoto);
+
+router.put("/update", authenticateToken, updateUser)
+
+router.get("/logout", authenticateToken, logout)
+
+router.delete("/delete", authenticateToken, deleteUser)
 
 export default router;
