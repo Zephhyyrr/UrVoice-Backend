@@ -1,5 +1,6 @@
 import { RequestHandler } from "express";
 import * as userService from "../services/userService";
+import * as fs from "fs";
 
 export const register: RequestHandler = async (req, res, next) => {
     try {
@@ -53,6 +54,37 @@ export const updateUser: RequestHandler = async (req, res, next) => {
         });
     } catch (e) {
         next(e);
+    }
+};
+
+export const updateProfilePhoto: RequestHandler = async (req, res, next) => {
+    try {
+        if (!req.user) {
+            res.status(401).json({ error: "User not authenticated" });
+            return;
+        }
+        
+        const userId = req.user.userId;
+        const file = req.file;
+        
+        if (!file) {
+            res.status(400).json({ error: "Image file is required" });
+            return;
+        }
+        
+        const updatedUser = await userService.updateProfilePhoto(userId, file);
+        
+        res.status(200).json({
+            status: true,
+            message: "Profile image updated successfully",
+            profileImage: updatedUser.profileImage,
+            user: updatedUser
+        });
+    } catch (error) {
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+        next(error);
     }
 };
 

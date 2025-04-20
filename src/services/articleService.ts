@@ -105,7 +105,7 @@ export const get: RequestHandler[] = [authenticateToken, async (req, res) => {
     }
 }];
 
-export const getById: RequestHandler[] = [authenticateToken, async (req, res) => {
+export const getById: RequestHandler[] = [authenticateToken, async (req, res, next) => {
     const { id } = req.params;
 
     try {
@@ -114,7 +114,8 @@ export const getById: RequestHandler[] = [authenticateToken, async (req, res) =>
         });
 
         if (!article) {
-            return res.status(404).json({ error: "Article not found" });
+            res.status(404).json({ error: "Article not found" });
+            return;
         }
 
         res.status(200).json({
@@ -123,11 +124,7 @@ export const getById: RequestHandler[] = [authenticateToken, async (req, res) =>
             data: article,
         });
     } catch (error) {
-        if (error instanceof ResponseError) {
-            res.status(error.status).json({ error: error.message });
-        } else {
-            res.status(500).json({ error: "Failed to fetch article" });
-        }
+        next(error);
     }
 }];
 

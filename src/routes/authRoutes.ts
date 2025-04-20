@@ -1,7 +1,8 @@
 import { Router } from "express";
-import { login, register, updateUser, logout, deleteUser } from "../controllers/userController";
-import { getAllUsers, fetchUserById, updateProfilePhoto} from "../services/userService";
+import { login, register, updateUser, logout, deleteUser, updateProfilePhoto } from "../controllers/userController";
+import { getAllUsers, fetchUserById} from "../services/userService";
 import { authenticateToken } from "../middleware/auth";
+import { upload } from "../middleware/upload";
 
 const router = Router();
 
@@ -13,7 +14,7 @@ router.get("/getUsers", getAllUsers);
 
 router.get("/getUser/", fetchUserById);   
 
-router.post("/uploadPhotos", updateProfilePhoto);
+router.post("/uploadPhotos", authenticateToken, upload.single("profileImage"), updateProfilePhoto);
 
 router.put("/update", authenticateToken, updateUser)
 

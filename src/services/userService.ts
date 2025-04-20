@@ -96,7 +96,7 @@ export const loginUser = async (email: string, password: string) => {
 
     if (!existingToken || (new Date().getTime() - new Date(existingToken.createdAt).getTime()) > 3600000) {
         await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
-        refreshToken = generateRefreshToken(user.id); 
+        refreshToken = generateRefreshToken(user.id);
 
         // const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
         await prisma.refreshToken.create({
@@ -153,54 +153,44 @@ export const updateUser = async (userId: number, name: string, email: string) =>
     return updatedUser;
 };
 
-export const updateProfilePhoto: RequestHandler[] = [
-    authenticateToken,
-    upload.single("profileImage"),
-    async (req, res, next) => {
-        try {
-            const userId = (req.user as { userId: number }).userId;
-            const file = req.file;
+export const updateProfilePhoto = async (userId: number, file: Express.Multer.File) => {
+    if (!file) {
+        throw new Error("Image file is required");
+    }
 
-            if (!file) {
-                return res.status(400).json({ error: "Image file is required" });
-            }
+    const randomFileName = crypto.randomBytes(16).toString("hex") + path.extname(file.originalname);
+    const uploadPath = path.join(__dirname, "../../public/uploads", randomFileName);
 
-            const randomFileName = crypto.randomBytes(16).toString("hex") + path.extname(file.originalname);
-            const uploadPath = path.join(__dirname, "../../public/uploads", randomFileName);
+    fs.renameSync(file.path, uploadPath);
 
-            fs.renameSync(file.path, uploadPath);
+    const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: { profileImage: `/uploads/${randomFileName}` },
+    });
 
-            const updatedUser = await prisma.user.update({
-                where: { id: userId },
-                data: { profileImage: `/uploads/${randomFileName}` },
-            });
+    return {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        profileImage: updatedUser.profileImage
+    };
+};
 
-            res.status(200).json({
-                status: true,
-                message: "Profile image updated successfully",
-                profileImage: updatedUser.profileImage,
-            });
-        } catch (error) {
-            next(error);
+    export const deleteUser = async (userId: number) => {
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) {
+            throw new ResponseError(404, "User not found");
         }
-    },
-];
 
-export const deleteUser = async (userId: number) => {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-        throw new ResponseError(404, "User not found");
-    }
+        await prisma.refreshToken.deleteMany({ where: { userId } });
+        await prisma.history.deleteMany({ where: { userId } });
+        await prisma.user.delete({ where: { id: userId } });
+    };
 
-    await prisma.refreshToken.deleteMany({ where: { userId } });
-    await prisma.history.deleteMany({ where: { userId } });
-    await prisma.user.delete({ where: { id: userId } });
-};
-
-export const logout = async (userId: number) => {
-    const logoutUser = await prisma.user.findUnique({ where: { id: userId } });
-    if (!logoutUser) {
-        throw new ResponseError(404, "User not Found")
-    }
-    await prisma.refreshToken.deleteMany({ where: { userId } });
-};
+    export const logout = async (userId: number) => {
+        const logoutUser = await prisma.user.findUnique({ where: { id: userId } });
+        if (!logoutUser) {
+            throw new ResponseError(404, "User not Found")
+        }
+        await prisma.refreshToken.deleteMany({ where: { userId } });
+    };
