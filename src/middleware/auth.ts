@@ -90,7 +90,6 @@ export const createRefreshToken = async (userId: number): Promise<string> => {
     return refreshToken;
 };
 
-// Fungsi untuk memeriksa dan membersihkan token yang sudah kadaluarsa
 export const cleanupExpiredTokens = async (): Promise<void> => {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     

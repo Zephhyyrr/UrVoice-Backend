@@ -2,7 +2,7 @@ import express, { Request, Response, NextFunction } from "express";
 import dotenv from "dotenv";
 import authRoutes from "./routes/authRoutes";
 import articleRoutes from "./routes/articleRoutes";
-import speechRoutes from "./routes/speechRoutes";
+import speechRoutes from "./models/speechRoutes";
 
 dotenv.config();
 

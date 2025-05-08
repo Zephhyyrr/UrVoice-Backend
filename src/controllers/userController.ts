@@ -31,6 +31,7 @@ export const login: RequestHandler = async (req, res, next) => {
             success: true,
             message: "Login successful",
             data: {
+                email,
                 accessToken,
                 refreshToken,
             },

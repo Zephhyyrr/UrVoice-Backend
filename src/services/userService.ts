@@ -176,21 +176,21 @@ export const updateProfilePhoto = async (userId: number, file: Express.Multer.Fi
     };
 };
 
-    export const deleteUser = async (userId: number) => {
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-        if (!user) {
-            throw new ResponseError(404, "User not found");
-        }
+export const deleteUser = async (userId: number) => {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+        throw new ResponseError(404, "User not found");
+    }
 
-        await prisma.refreshToken.deleteMany({ where: { userId } });
-        await prisma.history.deleteMany({ where: { userId } });
-        await prisma.user.delete({ where: { id: userId } });
-    };
+    await prisma.refreshToken.deleteMany({ where: { userId } });
+    await prisma.history.deleteMany({ where: { userId } });
+    await prisma.user.delete({ where: { id: userId } });
+};
 
-    export const logout = async (userId: number) => {
-        const logoutUser = await prisma.user.findUnique({ where: { id: userId } });
-        if (!logoutUser) {
-            throw new ResponseError(404, "User not Found")
-        }
-        await prisma.refreshToken.deleteMany({ where: { userId } });
-    };
+export const logout = async (userId: number) => {
+    const logoutUser = await prisma.user.findUnique({ where: { id: userId } });
+    if (!logoutUser) {
+        throw new ResponseError(404, "User not Found")
+    }
+    await prisma.refreshToken.deleteMany({ where: { userId } });
+};
