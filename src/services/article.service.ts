@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { RequestHandler } from "express";
 import { authenticateToken } from "../middleware/auth";
-import { ResponseError } from "../error/responseError";
+import { ResponseError } from "../error/response.error";
 import { upload } from "../middleware/upload";
 import * as fs from "fs";
 import * as path from "path";

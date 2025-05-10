@@ -1,6 +1,6 @@
 import { RequestHandler } from "express";
-import * as historyService from "../services/historyService";
-import { ResponseError } from "../error/responseError";
+import * as historyService from "../services/history.service";
+import { ResponseError } from "../error/response.error";
 
 export const getAllHistory: RequestHandler = async (req, res, next) => { 
     try {

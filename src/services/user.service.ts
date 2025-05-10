@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 import { z } from "zod";
 import { upload } from "../middleware/upload";
 import { RequestHandler, Request } from "express";
-import { ResponseError } from "../error/responseError"
+import { ResponseError } from "../error/response.error"
 import { authenticateToken } from "../middleware/auth";
 import path from "path";
 import fs from "fs";

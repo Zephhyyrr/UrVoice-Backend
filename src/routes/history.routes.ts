@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAllHistory, getHistoryById } from "../controllers/historyController";
+import { getAllHistory, getHistoryById } from "../controllers/history.controller";
 import { authenticateToken } from "../middleware/auth";
 
 const router = Router();

@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { login, register, updateUser, logout, deleteUser, updateProfilePhoto } from "../controllers/userController";
-import { getAllUsers, fetchUserById} from "../services/userService";
+import { login, register, updateUser, logout, deleteUser, updateProfilePhoto } from "../controllers/user.controller";
+import { getAllUsers, fetchUserById} from "../services/user.service";
 import { authenticateToken } from "../middleware/auth";
 import { upload } from "../middleware/upload";
 

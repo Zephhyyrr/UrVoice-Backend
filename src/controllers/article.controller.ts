@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { create, update, get, getById, deleteArticle } from "../services/articleService";
+import { create, update, get, getById, deleteArticle } from "../services/article.service";
 
 const runMiddlewareChain = (
     middlewares: Array<(req: Request, res: Response, next: NextFunction) => any>

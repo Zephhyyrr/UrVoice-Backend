@@ -1,5 +1,5 @@
 import { RequestHandler } from 'express';
-import { speechService } from '../models/speechService';
+import { speechService } from './speech.service';
 
 export const speechToText: RequestHandler = async (req, res, next) => {
     try {

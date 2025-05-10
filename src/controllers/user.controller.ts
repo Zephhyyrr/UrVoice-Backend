@@ -1,5 +1,5 @@
 import { RequestHandler } from "express";
-import * as userService from "../services/userService";
+import * as userService from "../services/user.service";
 import * as fs from "fs";
 
 export const register: RequestHandler = async (req, res, next) => {
