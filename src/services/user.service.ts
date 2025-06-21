@@ -44,7 +44,7 @@ const generateRefreshToken = (userId: number): string => {
 export const registerSchema = z.object({
     name: z.string().min(1, "Name is required"),
     email: z.string().email("Invalid email format"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
 export const registerUser = async (name: string, email: string, password: string) => {
@@ -144,14 +144,46 @@ export const fetchUserById: RequestHandler[] = [
     }
 ];
 
-export const updateUser = async (userId: number, name: string, email: string) => {
+
+export const updateUser = async (userId: number, name: string, email: string, password?: string) => {
+    let updateData: any = {
+        name,
+        email,
+        updatedAt: new Date(),
+    };
+
+    if (password) {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        updateData.password = hashedPassword;
+    }
+
     const updatedUser = await prisma.user.update({
         where: { id: userId },
-        data: { name, email, updatedAt: new Date() },
+        data: updateData,
     });
 
     return updatedUser;
 };
+
+export const getCurrentUserService = async (userId: number) => {
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+            id: true,
+            name: true,
+            email: true,
+            profileImage: true,
+            createdAt: true,
+            updatedAt: true,
+        },
+    });
+
+    if (!user) {
+        throw new ResponseError(404, "User not found");
+    }
+
+    return user;
+}
 
 export const updateProfilePhoto = async (userId: number, file: Express.Multer.File) => {
     if (!file) {

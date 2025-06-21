@@ -3,36 +3,55 @@ import { RequestHandler } from "express";
 import { authenticateToken } from "../middleware/auth";
 import { ResponseError } from "../error/response.error";
 import { upload } from "../middleware/upload";
-import * as fs from "fs";
+import * as fs from "fs/promises";
 import * as path from "path";
-import { v4 as uuidv4 } from "uuid";
 
 const prisma = new PrismaClient();
 
+const uploadsFolder = path.join(__dirname, "../../public/uploads");
+const baseImageUrl = process.env.BASE_IMAGE_URL
+    ? process.env.BASE_IMAGE_URL.replace(/\/+$/, '') // hapus trailing slash jika ada
+    : "http://localhost:3000/uploads";
+
+// Helper untuk generate URL gambar lengkap
+function getImageUrl(filename: string | null) {
+    if (!filename) return null;
+    return `${baseImageUrl}/${filename}`;
+}
+
+// Create Article
 export const create: RequestHandler[] = [
     authenticateToken,
     upload.single("image"),
     async (req, res, next) => {
-        const { title, content } = req.body;
-        const image = req.file?.filename ? `${uuidv4()}${path.extname(req.file.filename)}` : null;
-
         try {
-            if (!title || !content || !image) {
-                throw new ResponseError(400, "Title, content, and image are required");
+            const { title, content } = req.body;
+
+            if (!title || !content) {
+                throw new ResponseError(400, "Title and content are required");
             }
+
+            if (!req.file) {
+                throw new ResponseError(400, "Image file is required");
+            }
+
+            const newFilename = path.basename(req.file.filename); // gunakan filename dari middleware
 
             const article = await prisma.article.create({
                 data: {
                     title,
                     content,
-                    image,
+                    image: newFilename,
                 },
             });
 
             res.status(201).json({
                 success: true,
                 message: "Article successfully created",
-                data: article,
+                data: {
+                    ...article,
+                    imageUrl: getImageUrl(article.image),
+                },
             });
         } catch (error) {
             next(error);
@@ -40,47 +59,58 @@ export const create: RequestHandler[] = [
     },
 ];
 
+// Update Article
 export const update: RequestHandler[] = [
     authenticateToken,
     upload.single("image"),
     async (req, res, next) => {
-        const { id } = req.params;
-        const { title, content } = req.body;
-        const newImage = req.file?.filename ? `${uuidv4()}${path.extname(req.file.filename)}` : null;
-
         try {
+            const id = Number(req.params.id);
+            if (isNaN(id)) throw new ResponseError(400, "Invalid article ID");
+
+            const { title, content } = req.body;
+
             if (!title || !content) {
                 throw new ResponseError(400, "Title and content are required");
             }
 
-            const oldArticle = await prisma.article.findUnique({
-                where: { id: Number(id) },
-            });
-
+            const oldArticle = await prisma.article.findUnique({ where: { id } });
             if (!oldArticle) {
                 throw new ResponseError(404, "Article not found");
             }
 
-            if (newImage && oldArticle.image) {
-                const oldPath = path.join(__dirname, "../../public/uploads", oldArticle.image);
-                if (fs.existsSync(oldPath)) {
-                    fs.unlinkSync(oldPath);
+            let newFilename = oldArticle.image;
+
+            if (req.file) {
+                newFilename = path.basename(req.file.filename);
+
+                // Hapus file lama jika ada
+                if (oldArticle.image) {
+                    const oldImagePath = path.join(uploadsFolder, oldArticle.image);
+                    try {
+                        await fs.unlink(oldImagePath);
+                    } catch {
+                        // file mungkin sudah dihapus, abaikan error
+                    }
                 }
             }
 
             const updatedArticle = await prisma.article.update({
-                where: { id: Number(id) },
+                where: { id },
                 data: {
                     title,
                     content,
-                    image: newImage ?? oldArticle.image,
+                    image: newFilename,
                 },
             });
 
             res.status(200).json({
                 success: true,
                 message: "Article successfully updated",
-                data: updatedArticle,
+                data: {
+                    ...updatedArticle,
+                    imageUrl: getImageUrl(updatedArticle.image),
+                },
             });
         } catch (error) {
             next(error);
@@ -88,78 +118,91 @@ export const update: RequestHandler[] = [
     },
 ];
 
-export const get: RequestHandler[] = [authenticateToken, async (req, res) => {
-    try {
-        const articles = await prisma.article.findMany();
-        res.status(200).json({
-            success: true,
-            message: "Articles retrieved successfully",
-            data: articles,
-        });
-    } catch (error) {
-        if (error instanceof ResponseError) {
-            res.status(error.status).json({ error: error.message });
-        } else {
-            res.status(500).json({ error: "Failed to fetch articles" });
+
+// Get All Articles
+export const get: RequestHandler[] = [
+    authenticateToken,
+    async (req, res, next) => {
+        try {
+            const articles = await prisma.article.findMany();
+
+            const articlesWithImageUrl = articles.map((a) => ({
+                ...a,
+                imageUrl: getImageUrl(a.image),
+            }));
+
+            res.status(200).json({
+                success: true,
+                message: "Articles retrieved successfully",
+                data: articlesWithImageUrl,
+            });
+        } catch (error) {
+            next(error);
         }
-    }
-}];
+    },
+];
 
-export const getById: RequestHandler[] = [authenticateToken, async (req, res, next) => {
-    const { id } = req.params;
+// Get Article by ID
+export const getById: RequestHandler[] = [
+    authenticateToken,
+    async (req, res, next) => {
+        try {
+            const id = Number(req.params.id);
+            if (isNaN(id)) throw new ResponseError(400, "Invalid article ID");
 
-    try {
-        const article = await prisma.article.findUnique({
-            where: { id: Number(id) },
-        });
+            const article = await prisma.article.findUnique({ where: { id } });
 
-        if (!article) {
-            res.status(404).json({ error: "Article not found" });
-            return;
-        }
-
-        res.status(200).json({
-            success: true,
-            message: "Article retrieved successfully",
-            data: article,
-        });
-    } catch (error) {
-        next(error);
-    }
-}];
-
-export const deleteArticle: RequestHandler[] = [authenticateToken, async (req, res) => {
-    const { id } = req.params;
-
-    try {
-        const articleToDelete = await prisma.article.findUnique({
-            where: { id: Number(id) },
-        });
-
-        if (!articleToDelete) {
-            throw new ResponseError(404, "Article not found");
-        }
-
-        if (articleToDelete.image) {
-            const imagePath = path.join(__dirname, "../../public/uploads", articleToDelete.image);
-            if (fs.existsSync(imagePath)) {
-                fs.unlinkSync(imagePath);
+            if (!article) {
+                res.status(404).json({ error: "Article not found" });
+                return;
             }
-        }
 
-        await prisma.article.delete({
-            where: { id: Number(id) },
-        });
-
-        res.status(204).json({
-            success: true,
-            message: "Article successfully deleted",
-        });
-    } catch (error) {
-        if (error instanceof ResponseError) {
-            res.status(error.status).json({ error: error.message });
-        } else {
-            res.status(500).json({ error: "Failed to delete article" });
+            res.status(200).json({
+                success: true,
+                message: "Article retrieved successfully",
+                data: {
+                    ...article,
+                    imageUrl: getImageUrl(article.image),
+                },
+            });
+        } catch (error) {
+            next(error);
         }
-    }
-}];
+    },
+];
+
+// Delete Article
+export const deleteArticle: RequestHandler[] = [
+    authenticateToken,
+    async (req, res, next) => {
+        try {
+            const id = Number(req.params.id);
+            if (isNaN(id)) throw new ResponseError(400, "Invalid article ID");
+
+            const articleToDelete = await prisma.article.findUnique({ where: { id } });
+
+            if (!articleToDelete) {
+                throw new ResponseError(404, "Article not found");
+            }
+
+            if (articleToDelete.image) {
+                const imagePath = path.join(uploadsFolder, articleToDelete.image);
+                try {
+                    await fs.unlink(imagePath);
+                } catch {
+                    // file mungkin sudah tidak ada, abaikan error
+                }
+            }
+
+            await prisma.article.delete({ where: { id } });
+
+            // 204 No Content tidak boleh ada body, jadi gunaxkan 200 dengan pesan sukses
+            res.status(200).json({
+                success: true,
+                message: "Article successfully deleted",
+            });
+        } catch (error) {
+            next(error);
+        }
+    },
+];
