@@ -1,17 +1,23 @@
 import axios from 'axios';
 import FormData from 'form-data';
 import { Express } from 'express';
+import fs from 'fs';
+import path from 'path';
 
 const FLASK_API_BASE_URL = 'http://127.0.0.1:5051';
+const uploadPath = path.join(__dirname, "../../public/uploads"); // pastikan sama seperti di middleware
 
 export const speechService = {
     async speechToText(file: Express.Multer.File) {
-        if (!file || !file.buffer) {
+        if (!file || !file.path) {
             throw new Error("File is missing or not in correct format");
         }
 
+        const filePath = file.path;
+        const fileName = path.basename(filePath);
+
         const formData = new FormData();
-        formData.append('audio', file.buffer, {
+        formData.append('audio', fs.createReadStream(filePath), {
             filename: file.originalname,
             contentType: file.mimetype,
         });
@@ -20,24 +26,32 @@ export const speechService = {
             headers: formData.getHeaders(),
         });
 
-        return response.data;
+        return {
+            ...response.data,
+            audioFileName: fileName,
+            audioPath: `/uploads/${fileName}`,
+        };
     },
 
-    async analyzeSpeech(text: string, file?: Express.Multer.File) {
+    async analyzeSpeech(text: string, audioFileName?: string) {
         const formData = new FormData();
         formData.append('text', text);
-        
-        if (file) {
-            formData.append('audio', file.buffer, {
-                filename: file.originalname,
-                contentType: file.mimetype,
-            });
+
+        if (audioFileName) {
+            const filePath = path.join(uploadPath, audioFileName);
+
+            if (fs.existsSync(filePath)) {
+                formData.append('audio', fs.createReadStream(filePath), {
+                    filename: audioFileName,
+                    contentType: 'audio/wav', // atau ganti sesuai jenis file aslinya
+                });
+            }
         }
-    
+
         const response = await axios.post(`${FLASK_API_BASE_URL}/analyze`, formData, {
             headers: formData.getHeaders(),
         });
-    
+
         return response.data;
     }
 };

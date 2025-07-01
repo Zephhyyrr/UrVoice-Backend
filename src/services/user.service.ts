@@ -26,7 +26,7 @@ const JWT_SECRET: Secret = process.env.JWT_SECRET as string;
 const JWT_REFRESH_SECRET: Secret = process.env.JWT_REFRESH_SECRET as string;
 
 const JWT_EXPIRATION: string = process.env.JWT_EXPIRATION || "1h";
-const JWT_REFRESH_EXPIRATION: string = process.env.JWT_REFRESH_EXPIRATION || "1h";
+const JWT_REFRESH_EXPIRATION: string = process.env.JWT_REFRESH_EXPIRATION || "99h";
 
 const parsedJwtExpiration: SignOptions['expiresIn'] = /^\d+$/.test(JWT_EXPIRATION) ? Number(JWT_EXPIRATION) : JWT_EXPIRATION as SignOptions['expiresIn'];
 const parsedJwtRefreshExpiration: SignOptions['expiresIn'] = /^\d+$/.test(JWT_REFRESH_EXPIRATION) ? Number(JWT_REFRESH_EXPIRATION) : JWT_REFRESH_EXPIRATION as SignOptions['expiresIn'];
@@ -144,7 +144,6 @@ export const fetchUserById: RequestHandler[] = [
     }
 ];
 
-
 export const updateUser = async (userId: number, name: string, email: string, password?: string) => {
     let updateData: any = {
         name,
@@ -173,6 +172,7 @@ export const getCurrentUserService = async (userId: number) => {
             name: true,
             email: true,
             profileImage: true,
+            password: true, 
             createdAt: true,
             updatedAt: true,
         },

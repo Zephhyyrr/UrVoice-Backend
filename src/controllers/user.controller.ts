@@ -68,7 +68,7 @@ export const updateUser: RequestHandler = async (req, res, next) => {
     }
 };
 
-export const getCurrentUserService: RequestHandler = async (req, res, next) => {
+export const getCurrentUserController: RequestHandler = async (req, res, next) => {
     try {
         if (!req.user) {
             res.status(401).json({ error: "User not authenticated" });
