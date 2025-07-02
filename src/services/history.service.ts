@@ -57,7 +57,7 @@ export const createHistory = async (
     userId: number,
     fileAudio: string,
     originalParagraph: string,
-    correctedParagraph: string,
+    correctedParagraph: string = "",
     grammarAnalysis?: any
 ) => {
     try {
@@ -74,6 +74,50 @@ export const createHistory = async (
         return history;
     } catch (error) {
         throw new ResponseError(500, "Failed to create history");
+    }
+};
+
+// Fungsi baru untuk update history
+export const updateHistory = async (
+    userId: number,
+    fileAudio: string,
+    correctedParagraph: string,
+    grammarAnalysis?: any
+) => {
+    try {
+        // Cari history berdasarkan userId dan fileAudio
+        const existingHistory = await prisma.history.findFirst({
+            where: {
+                userId,
+                fileAudio,
+            },
+            orderBy: {
+                createdAt: 'desc' // Ambil yang terbaru jika ada duplikat
+            }
+        });
+
+        if (!existingHistory) {
+            throw new ResponseError(404, "History not found for update");
+        }
+
+        // Update history dengan corrected paragraph dan grammar analysis
+        const updatedHistory = await prisma.history.update({
+            where: {
+                id: existingHistory.id
+            },
+            data: {
+                correctedParagraph,
+                grammarAnalysis,
+                updatedAt: new Date()
+            }
+        });
+
+        return updatedHistory;
+    } catch (error) {
+        if (error instanceof ResponseError) {
+            throw error;
+        }
+        throw new ResponseError(500, "Failed to update history");
     }
 };
 

@@ -1,6 +1,6 @@
 import { RequestHandler } from 'express';
 import { speechService } from './speech.service';
-import { createHistory } from '../services/history.service';
+import { createHistory, updateHistory } from '../services/history.service';
 
 export const speechToText: RequestHandler = async (req, res, next) => {
     try {
@@ -31,11 +31,10 @@ export const speechToText: RequestHandler = async (req, res, next) => {
     }
 };
 
-
 export const analyzeSpeech: RequestHandler = async (req, res, next) => {
     try {
         const { text, audioFileName } = req.body;
-        const userId = (req as any).user?.id || req.body?.userId;
+        const userId = (req as any).user?.userId || (req as any).user?.id || req.body?.userId;
 
         if (!text) {
             res.status(400).json({
@@ -48,14 +47,27 @@ export const analyzeSpeech: RequestHandler = async (req, res, next) => {
 
         console.log("📦 Grammar Analysis:", data.grammar_analysis);
 
+        // Update history yang sudah ada (jangan buat baru)
         if (userId && audioFileName) {
-            await createHistory(
-                userId,
-                audioFileName,
-                text,
-                data.data.corrected_paragraph,
-                data.data.grammar_analysis
-            );
+            try {
+                await updateHistory(
+                    Number(userId),
+                    audioFileName,
+                    data.corrected_paragraph, // Sesuaikan dengan struktur response Flask
+                    data.grammar_analysis     // Sesuaikan dengan struktur response Flask
+                );
+                console.log("✅ History berhasil diupdate untuk audioFileName:", audioFileName);
+            } catch (updateError) {
+                console.warn("⚠️ Gagal update history:", updateError);
+                // Jika update gagal, buat history baru sebagai fallback
+                await createHistory(
+                    Number(userId),
+                    audioFileName,
+                    text,
+                    data.corrected_paragraph,
+                    data.grammar_analysis
+                );
+            }
         }
 
         res.status(200).json({
