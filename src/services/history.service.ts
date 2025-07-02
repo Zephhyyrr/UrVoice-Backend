@@ -20,7 +20,13 @@ export const getAllHistory = async (userId: number) => {
             orderBy: { createdAt: 'desc' }
         });
 
-        return history;
+        // Transform fileAudio to include /uploads/ path
+        const transformedHistory = history.map(item => ({
+            ...item,
+            fileAudio: `/uploads/${item.fileAudio}`
+        }));
+
+        return transformedHistory;
     } catch (error) {
         if (error instanceof ResponseError) {
             throw error;
@@ -44,7 +50,13 @@ export const getHistoryById = async (userId: number, historyId: number) => {
             throw new ResponseError(404, "History not found");
         }
 
-        return history;
+        // Transform fileAudio to include /uploads/ path
+        const transformedHistory = {
+            ...history,
+            fileAudio: `/uploads/${history.fileAudio}`
+        };
+
+        return transformedHistory;
     } catch (error) {
         if (error instanceof ResponseError) {
             throw error;
