@@ -1,19 +1,24 @@
 import express from 'express';
-import { getAllHistory, getHistoryById, saveHistory, deleteHistory } from '../controllers/history.controller';
 import { authenticateToken } from '../middleware/auth';
+import { 
+    getHistory, 
+    getHistoryByIdController, 
+    saveHistory, 
+    deleteHistoryController 
+} from '../controllers/history.controller';
 
 const router = express.Router();
 
-// Route untuk mendapatkan semua history
-router.get('/', authenticateToken, getAllHistory);
+// GET /api/history - Get all history for user
+router.get('/', authenticateToken, getHistory);
 
-// Route untuk mendapatkan history berdasarkan ID
-router.get('/:id', authenticateToken, getHistoryById);
-
-// Route untuk menyimpan history baru
+// POST /api/history/save - Save history
 router.post('/save', authenticateToken, saveHistory);
 
-// Route untuk menghapus history
-router.delete('/:id', authenticateToken, deleteHistory);
+// GET /api/history/:id - Get specific history by ID
+router.get('/:id', authenticateToken, getHistoryByIdController);
+
+// DELETE /api/history/:id - Delete history
+router.delete('/:id', authenticateToken, deleteHistoryController);
 
 export default router;

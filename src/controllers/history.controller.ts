@@ -1,152 +1,170 @@
-import { RequestHandler } from "express";
-import * as historyService from "../services/history.service";
-import { ResponseError } from "../error/response.error";
+import { RequestHandler } from 'express';
+import { getAllHistory, getHistoryById, deleteHistory } from '../services/history.service';
+import { PrismaClient } from '@prisma/client';
 
-export const getAllHistory: RequestHandler = async (req, res, next): Promise<void> => {
+const prisma = new PrismaClient();
+
+export const getHistory: RequestHandler = async (req, res, next) => {
     try {
-        if (!req.user) {
+        const userId = (req as any).user?.userId;
+
+        if (!userId) {
             res.status(401).json({
                 success: false,
-                error: "Authentication required"
+                message: "Unauthorized - User ID not found"
             });
             return;
         }
 
-        const userId = (req.user as { userId: number }).userId;
-
-        if (!userId || isNaN(userId)) {
-            res.status(400).json({
-                success: false,
-                error: "Invalid user ID"
-            });
-            return;
-        }
-
-        const history = await historyService.getAllHistory(userId);
+        const history = await getAllHistory(Number(userId));
 
         res.status(200).json({
             success: true,
             message: "History retrieved successfully",
-            data: history,
-        });
-    } catch (error) {
-        if (error instanceof ResponseError) {
-            res.status(error.status).json({
-                success: false,
-                error: error.message
-            });
-        } else {
-            res.status(500).json({
-                success: false,
-                error: "Failed to fetch history"
-            });
-        }
-    }
-};
-
-export const getHistoryById: RequestHandler = async (req, res, next): Promise<void> => {
-    try {
-        const userId = (req.user as { userId: number }).userId;
-        const historyId = Number(req.params.id);
-
-        if (isNaN(historyId)) {
-            res.status(400).json({
-                success: false,
-                error: "Invalid history ID"
-            });
-            return;
-        }
-
-        const history = await historyService.getHistoryById(userId, historyId);
-        res.status(200).json({
-            success: true,
-            message: "History retrieved successfully",
-            data: history,
-        });
-    } catch (error) {
-        if (error instanceof ResponseError) {
-            res.status(error.status).json({
-                success: false,
-                error: error.message
-            });
-        } else {
-            res.status(500).json({
-                success: false,
-                error: "Failed to fetch history"
-            });
-        }
-    }
-};
-
-export const saveHistory: RequestHandler = async (req, res, next): Promise<void> => {
-    try {
-        const userId = (req.user as { userId: number }).userId;
-        const { audioFileName, originalText, correctedText } = req.body;
-
-        if (!audioFileName || !originalText || !correctedText) {
-            res.status(400).json({
-                success: false,
-                error: "Audio file name, original text, and corrected text are required"
-            });
-            return;
-        }
-
-        const history = await historyService.createHistory(
-            userId,
-            audioFileName,
-            originalText,
-            correctedText
-        );
-
-        res.status(201).json({
-            success: true,
-            message: "History saved successfully",
             data: history
         });
+        return;
     } catch (error) {
-        if (error instanceof ResponseError) {
-            res.status(error.status).json({
-                success: false,
-                error: error.message
-            });
-        } else {
-            res.status(500).json({
-                success: false,
-                error: "Failed to save history"
-            });
-        }
+        next(error);
     }
 };
 
-export const deleteHistory: RequestHandler = async (req, res, next): Promise<void> => {
+export const getHistoryByIdController: RequestHandler = async (req, res, next) => {
     try {
-        const userId = (req.user as { userId: number }).userId;
+        const userId = (req as any).user?.userId;
         const historyId = Number(req.params.id);
 
-        if (isNaN(historyId)) {
-            res.status(400).json({
+        if (!userId) {
+            res.status(401).json({
                 success: false,
-                error: "Invalid history ID"
+                message: "Unauthorized - User ID not found"
             });
             return;
         }
 
-        const result = await historyService.deleteHistory(userId, historyId);
+        if (isNaN(historyId)) {
+            res.status(400).json({
+                success: false,
+                message: "Invalid history ID"
+            });
+            return;
+        }
+
+        const history = await getHistoryById(Number(userId), historyId);
+
+        res.status(200).json({
+            success: true,
+            message: "History retrieved successfully",
+            data: history
+        });
+        return;
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const saveHistory: RequestHandler = async (req, res, next) => {
+    try {
+        const userId = (req as any).user?.userId;
+        const {
+            audioFileName,
+            originalParagraph,
+            correctedParagraph,
+            grammarAnalysis
+        } = req.body;
+
+        if (!userId) {
+            res.status(401).json({
+                success: false,
+                message: "Unauthorized - User ID not found"
+            });
+            return;
+        }
+
+        if (!audioFileName || !originalParagraph) {
+            res.status(400).json({
+                success: false,
+                message: "audioFileName and originalParagraph are required"
+            });
+            return;
+        }
+
+        const existingHistory = await prisma.history.findFirst({
+            where: {
+                userId: Number(userId),
+                fileAudio: audioFileName
+            }
+        });
+
+        let savedHistory;
+
+        if (existingHistory) {
+            savedHistory = await prisma.history.update({
+                where: { id: existingHistory.id },
+                data: {
+                    correctedParagraph: correctedParagraph || existingHistory.correctedParagraph,
+                    grammarAnalysis: grammarAnalysis || existingHistory.grammarAnalysis,
+                    updatedAt: new Date()
+                }
+            });
+        } else {
+            savedHistory = await prisma.history.create({
+                data: {
+                    userId: Number(userId),
+                    fileAudio: audioFileName,
+                    originalParagraph,
+                    correctedParagraph: correctedParagraph || "",
+                    grammarAnalysis: grammarAnalysis || null
+                }
+            });
+        }
+
+        const transformedHistory = {
+            ...savedHistory,
+            fileAudio: `/uploads/${savedHistory.fileAudio}`
+        };
+
+        res.status(200).json({
+            success: true,
+            message: existingHistory ? "History updated successfully" : "History saved successfully",
+            data: transformedHistory
+        });
+        return;
+    } catch (error) {
+        console.error("Error saving history:", error);
+        next(error);
+    }
+};
+
+export const deleteHistoryController: RequestHandler = async (req, res, next) => {
+    try {
+        const userId = (req as any).user?.userId;
+        const historyId = Number(req.params.id);
+
+        if (!userId) {
+            res.status(401).json({
+                success: false,
+                message: "Unauthorized - User ID not found"
+            });
+            return;
+        }
+
+        if (isNaN(historyId)) {
+            res.status(400).json({
+                success: false,
+                message: "Invalid history ID"
+            });
+            return;
+        }
+
+        const result = await deleteHistory(Number(userId), historyId);
+
         res.status(200).json({
             success: true,
             message: result.message
         });
+        return;
     } catch (error) {
-        if (error instanceof ResponseError) {
-            res.status(error.status).json({
-                success: false,
-                error: error.message
-            });
-        } else {
-            res.status(500).json({
-                success: false,
-                error: "Failed to delete history"
-            });
-        }
+        next(error);
     }
 };
