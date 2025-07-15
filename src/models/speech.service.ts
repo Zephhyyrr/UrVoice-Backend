@@ -5,7 +5,7 @@ import fs from 'fs';
 import path from 'path';
 
 const FLASK_API_BASE_URL = 'http://127.0.0.1:5051';
-const uploadPath = path.join(__dirname, "../../public/uploads"); // pastikan sama seperti di middleware
+const uploadPath = path.join(__dirname, "../../public/uploads"); 
 
 export const speechService = {
     async speechToText(file: Express.Multer.File) {
@@ -43,7 +43,7 @@ export const speechService = {
             if (fs.existsSync(filePath)) {
                 formData.append('audio', fs.createReadStream(filePath), {
                     filename: audioFileName,
-                    contentType: 'audio/wav', // atau ganti sesuai jenis file aslinya
+                    contentType: 'audio/wav', 
                 });
             }
         }

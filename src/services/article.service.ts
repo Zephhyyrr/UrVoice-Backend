@@ -40,7 +40,7 @@ export const create: RequestHandler[] = [
     upload.single("image"),
     async (req, res, next) => {
         try {
-            const { title, content } = req.body;
+            const { title, content, urlArticle } = req.body;
 
             if (!title || !content) {
                 throw new ResponseError(400, "Title and content are required");
@@ -57,6 +57,7 @@ export const create: RequestHandler[] = [
                     title,
                     content,
                     image: newFilename,
+                    urlArticle,
                 },
             });
 
@@ -83,7 +84,7 @@ export const update: RequestHandler[] = [
             const id = Number(req.params.id);
             if (isNaN(id)) throw new ResponseError(400, "Invalid article ID");
 
-            const { title, content } = req.body;
+            const { title, content, urlArticle } = req.body;
 
             if (!title || !content) {
                 throw new ResponseError(400, "Title and content are required");
@@ -115,6 +116,7 @@ export const update: RequestHandler[] = [
                 data: {
                     title,
                     content,
+                    urlArticle,
                     image: newFilename,
                 },
             });

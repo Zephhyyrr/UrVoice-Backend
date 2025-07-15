@@ -107,7 +107,7 @@ export const updateProfilePhoto: RequestHandler = async (req, res, next) => {
         res.status(200).json({
             status: true,
             message: "Profile image updated successfully",
-            user: updatedUser
+            data: updatedUser
         });
     } catch (error) {
         if (req.file && fs.existsSync(req.file.path)) {
