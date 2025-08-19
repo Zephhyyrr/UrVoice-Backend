@@ -1,46 +1,44 @@
-import express, { Request, Response, NextFunction } from "express";
-import dotenv from "dotenv";
-import os from "os";
-import authRoutes from "./routes/auth.routes";
-import articleRoutes from "./routes/article.routes";
-import speechRoutes from "./models/speech.routes";
-import historyRoutes from "./routes/history.routes";
-import path from "path";
+import { networkInterfaces } from "os";
+import app from "./app";
 
-dotenv.config();
+const PORT: number = parseInt(process.env.PORT || "3000", 10);
 
-const app = express();
-app.use(express.json());
+function getNetworkAdresses(): string[] {
+    const nets = networkInterfaces();
+    const results: string[] = [];
 
-app.use("/api/users", authRoutes);
-app.use("/api/articles", articleRoutes);
-app.use("/api/models", speechRoutes);
-app.use("/api/history", historyRoutes);
-app.use("/uploads", express.static(path.join(__dirname, "../public/uploads")));
-
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-    res.status(err.status ? Number(err.status) : 500).json({
-        success: false,
-        message: err.message || "Internal Server Error",
-    });
-});
-
-function getLocalIP(): string {
-    const interfaces = os.networkInterfaces();
-    for (const name in interfaces) {
-        if (!interfaces[name]) continue;
-        for (const net of interfaces[name]!) {
+    for (const name of Object.keys(nets)) {
+        const netsInterface = nets[name]!;
+        for (const net of netsInterface) {
             if (net.family === "IPv4" && !net.internal) {
-                return net.address;
+                results.push(net.address);
             }
         }
     }
-    return "localhost";
+    return results;
 }
 
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-const ip = getLocalIP();
+function startServer(port: number) {
+    const server = app.listen(port, () => {
+        console.log("• Server running on:");
+        console.log(`   Local:   http://localhost:${port}`);
 
-app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server berjalan di http://${ip}:${PORT}`);
-});
+        const addrs = getNetworkAdresses();
+        if (addrs.length) {
+            for (const addr of addrs) {
+                console.log(`   Network: http://${addr}:${port}`);
+            }
+        }
+    });
+
+    server.on("error", (err: NodeJS.ErrnoException) => {
+        if (err.code === "EADDRINUSE") {
+            console.warn(`Port ${port} in use, trying ${port + 1}…`);
+            startServer(port + 1);
+        } else {
+            console.error("Server error:", err);
+        }
+    });
+}
+
+startServer(PORT);

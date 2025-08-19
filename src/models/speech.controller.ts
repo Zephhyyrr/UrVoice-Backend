@@ -6,7 +6,6 @@ export const speechToText: RequestHandler = async (req, res, next) => {
     try {
         const data = await speechService.speechToText(req.file!);
 
-        // Tidak menyimpan ke database, hanya return response
         res.status(200).json({
             success: true,
             message: "Transcription successful",
@@ -31,7 +30,6 @@ export const analyzeSpeech: RequestHandler = async (req, res, next) => {
         const data = await speechService.analyzeSpeech(text, audioFileName);
 
 
-        // Tidak menyimpan ke database, hanya return response
         res.status(200).json({
             success: true,
             message: "Analysis successful",

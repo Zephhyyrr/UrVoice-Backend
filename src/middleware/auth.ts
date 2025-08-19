@@ -22,10 +22,8 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     const token = authHeader.split(" ")[1];
 
     try {
-        // Verifikasi token dengan JWT
         const decoded = jwt.verify(token, JWT_REFRESH_SECRET) as { userId: number };
         
-        // Cek keberadaan token di database
         const refreshToken = await prisma.refreshToken.findFirst({
             where: {
                 token: token,
@@ -33,19 +31,16 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
             }
         });
 
-        // Jika token tidak ditemukan di database
         if (!refreshToken) {
             res.status(403).json({ error: "Invalid Token!" });
             return;
         }
 
-        // Cek waktu pembuatan token, jika lebih dari 1 jam maka token tidak valid
         const tokenCreationTime = new Date(refreshToken.createdAt).getTime();
         const currentTime = new Date().getTime();
         const oneHourInMillis = 60 * 60 * 1000; // 1 jam dalam milidetik
         
         if (currentTime - tokenCreationTime > oneHourInMillis) {
-            // Hapus token yang sudah kadaluarsa
             await prisma.refreshToken.delete({
                 where: {
                     id: refreshToken.id
@@ -55,7 +50,6 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
             return;
         }
 
-        // Set user pada request
         req.user = { userId: decoded.userId };
         next();
     } catch (error) {
@@ -63,23 +57,19 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     }
 };
 
-// Fungsi untuk membuat refresh token baru
 export const createRefreshToken = async (userId: number): Promise<string> => {
-    // Hapus semua refresh token yang ada untuk user ini
     await prisma.refreshToken.deleteMany({
         where: {
             userId: userId
         }
     });
     
-    // Buat token baru
     const refreshToken = jwt.sign(
         { userId }, 
         JWT_REFRESH_SECRET, 
         { expiresIn: '1h' }
     );
     
-    // Simpan token baru ke database
     await prisma.refreshToken.create({
         data: {
             token: refreshToken,

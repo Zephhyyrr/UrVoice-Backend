@@ -179,7 +179,7 @@ export const getCurrentUserService = async (userId: number) => {
     });
 
     if (!user) {
-        throw new ResponseError(404, "User not found");
+        throw new ResponseError("User not found", 404);
     }
 
     return user;
@@ -211,7 +211,7 @@ export const updateProfilePhoto = async (userId: number, file: Express.Multer.Fi
 export const deleteUser = async (userId: number) => {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
-        throw new ResponseError(404, "User not found");
+        throw new ResponseError("User not found", 400);
     }
 
     await prisma.refreshToken.deleteMany({ where: { userId } });
@@ -222,7 +222,7 @@ export const deleteUser = async (userId: number) => {
 export const logout = async (userId: number) => {
     const logoutUser = await prisma.user.findUnique({ where: { id: userId } });
     if (!logoutUser) {
-        throw new ResponseError(404, "User not Found")
+        throw new ResponseError("User not Found", 404)
     }
     await prisma.refreshToken.deleteMany({ where: { userId } });
 };

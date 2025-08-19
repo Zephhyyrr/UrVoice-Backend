@@ -1,18 +1,14 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '../config/prisma';
 import { ResponseError } from '../error/response.error';
-
-const prisma = new PrismaClient();
 
 export const getAllHistory = async (userId: number) => {
     try {
-        await prisma.$connect();
-
         const userExists = await prisma.user.findUnique({
             where: { id: userId }
         });
 
         if (!userExists) {
-            throw new ResponseError(404, "User not found");
+            throw new ResponseError("User not found", 404);
         }
 
         const history = await prisma.history.findMany({
@@ -20,7 +16,6 @@ export const getAllHistory = async (userId: number) => {
             orderBy: { createdAt: 'desc' }
         });
 
-        // Transform fileAudio to include /uploads/ path
         const transformedHistory = history.map(item => ({
             ...item,
             fileAudio: `/uploads/${item.fileAudio}`
@@ -33,10 +28,10 @@ export const getAllHistory = async (userId: number) => {
         }
 
         if ((error as any)?.name === 'PrismaClientKnownRequestError') {
-            throw new ResponseError(500, `Database error: ${(error as any)?.message || 'Unknown error'}`);
+            throw new ResponseError(`Database error: ${(error as any)?.message || 'Unknown error'}`, 500);
         }
 
-        throw new ResponseError(500, "Failed to fetch history");
+        throw new ResponseError("Failed to fetch history", 500);
     }
 };
 
@@ -47,10 +42,9 @@ export const getHistoryById = async (userId: number, historyId: number) => {
         });
 
         if (!history) {
-            throw new ResponseError(404, "History not found");
+            throw new ResponseError("History not found", 404);
         }
 
-        // Transform fileAudio to include /uploads/ path
         const transformedHistory = {
             ...history,
             fileAudio: `/uploads/${history.fileAudio}`
@@ -61,7 +55,7 @@ export const getHistoryById = async (userId: number, historyId: number) => {
         if (error instanceof ResponseError) {
             throw error;
         }
-        throw new ResponseError(500, "Failed to fetch history");
+        throw new ResponseError("Faied to fetch history", 500);
     }
 };
 
@@ -85,11 +79,10 @@ export const createHistory = async (
 
         return history;
     } catch (error) {
-        throw new ResponseError(500, "Failed to create history");
+        throw new ResponseError("Failed to create history", 500);
     }
 };
 
-// Fungsi baru untuk update history
 export const updateHistory = async (
     userId: number,
     fileAudio: string,
@@ -97,22 +90,20 @@ export const updateHistory = async (
     grammarAnalysis?: any
 ) => {
     try {
-        // Cari history berdasarkan userId dan fileAudio
         const existingHistory = await prisma.history.findFirst({
             where: {
                 userId,
                 fileAudio,
             },
             orderBy: {
-                createdAt: 'desc' // Ambil yang terbaru jika ada duplikat
+                createdAt: 'desc'
             }
         });
 
         if (!existingHistory) {
-            throw new ResponseError(404, "History not found for update");
+            throw new ResponseError("History not found for update", 404);
         }
 
-        // Update history dengan corrected paragraph dan grammar analysis
         const updatedHistory = await prisma.history.update({
             where: {
                 id: existingHistory.id
@@ -129,7 +120,7 @@ export const updateHistory = async (
         if (error instanceof ResponseError) {
             throw error;
         }
-        throw new ResponseError(500, "Failed to update history");
+        throw new ResponseError("Failed to update history", 500);
     }
 };
 
@@ -140,7 +131,7 @@ export const deleteHistory = async (userId: number, historyId: number) => {
         });
 
         if (!history) {
-            throw new ResponseError(404, "History not found");
+            throw new ResponseError("History not found", 404);
         }
 
         await prisma.history.delete({
@@ -152,6 +143,6 @@ export const deleteHistory = async (userId: number, historyId: number) => {
         if (error instanceof ResponseError) {
             throw error;
         }
-        throw new ResponseError(500, "Failed to delete history");
+        throw new ResponseError("Failed to delete history", 500);
     }
 };
